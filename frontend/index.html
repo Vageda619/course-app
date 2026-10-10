@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Курсы и обучение — вариант 10</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 16px;
+            background: #f4f6f8;
+        }
+
+        h1 {
+            color: #1f2937;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button.green {
+            background: #059669;
+        }
+
+        button.green:hover {
+            background: #047857;
+        }
+
+        input {
+            padding: 9px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-right: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th,
+        td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f9fafb;
+        }
+
+        .msg {
+            margin-top: 10px;
+            color: #374151;
+        }
+
+        .err {
+            color: #b91c1c;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Курсы и обучение</h1>
+    <p>Вариант 10. Внутренняя БД: зарегистрированные курсы. Web-сервис: поиск курсов по категории.</p>
+
+    <div class="card">
+        <h2>Мои курсы</h2>
+        <button id="btnLoad">Показать мои курсы (из БД)</button>
+        <div id="msg1" class="msg"></div>
+        <div id="out1"></div>
+    </div>
+
+    <div class="card">
+        <h2>Поиск курсов через web-сервис</h2>
+        <input id="cat" type="text" placeholder="Например: Программирование">
+        <button id="btnSearch" class="green">Найти курсы</button>
+        <div id="msg2" class="msg"></div>
+        <div id="out2"></div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000/api';
+
+        const msg1 = document.getElementById('msg1');
+        const out1 = document.getElementById('out1');
+        const msg2 = document.getElementById('msg2');
+        const out2 = document.getElementById('out2');
+
+        // Кнопка 1: тянем курсы из БД
+        document.getElementById('btnLoad').addEventListener('click', async () => {
+            msg1.textContent = 'Загрузка...';
+            msg1.className = 'msg';
+            try {
+                const res = await fetch(`${API}/courses`);
+                const data = await res.json();
+                out1.innerHTML = renderTable(data);
+                msg1.textContent = `Найдено: ${data.length}`;
+            } catch (e) {
+                msg1.textContent = 'Ошибка: ' + e.message;
+                msg1.className = 'msg err';
+            }
+        });
+
+        // Кнопка 2: поиск через web-service
+        document.getElementById('btnSearch').addEventListener('click', async () => {
+            const cat = document.getElementById('cat').value.trim();
+            msg2.textContent = 'Поиск...';
+            msg2.className = 'msg';
+            try {
+                const url = `${API}/search?category=${encodeURIComponent(cat)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                out2.innerHTML = renderTable(data, true);
+                msg2.textContent = `Найдено: ${data.length}`;
+            } catch (e) {
+                msg2.textContent = 'Ошибка: ' + e.message;
+                msg2.className = 'msg err';
+            }
+        });
+
+        function renderTable(rows, withRegister = false) {
+            if (!rows.length) return '<p>Пусто.</p>';
+            return `
+        <table>
+          <tr>
+            <th>Название</th><th>Категория</th><th>Провайдер</th>
+            ${withRegister ? '<th></th>' : ''}
+          </tr>
+          ${rows.map(c => `
+            <tr>
+              <td>${esc(c.title)}</td>
+              <td>${esc(c.category)}</td>
+              <td>${esc(c.provider || '')}</td>
+              ${withRegister ? `<td><button onclick='register(${JSON.stringify(c)})'>Зарегистрировать</button></td>` : ''}
+            </tr>
+          `).join('')}
+        </table>
+      `;
+        }
+
+        // Добавляем курс в БД (кнопка "Зарегистрировать")
+        async function register(course) {
+            try {
+                await fetch(`${API}/courses`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: course.title,
+                        category: course.category,
+                        provider: course.provider
+                    })
+                });
+                msg2.textContent = `Курс "${course.title}" добавлен в БД`;
+            } catch (e) {
+                msg2.textContent = 'Ошибка: ' + e.message;
+            }
+        }
+
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+    </script>
+</body>
+
+</html>
